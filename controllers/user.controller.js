@@ -32,8 +32,11 @@ module.exports.userLogin = async(req, res, next) => {
         if (!isCorrectPassword) {
             return res.status(400).json({ error: "invalid password" })
         }
-        const token = jwt.sign({ id: alreadyExist._id }, process.env.SECRET, { expiresIn: "1hr" })
+        const token = jwt.sign({ id: alreadyExist._id }, process.env.SECRET, { expiresIn: "35s" })
 
+        if (req.cookies[`${alreadyExist._id}`]) {
+            req.cookies[`${alreadyExist._id}`] = ""
+        }
         // send cookiie
         res.cookie(alreadyExist._id, token, {
             path: '/',
@@ -56,6 +59,30 @@ module.exports.getUser = async(req, res, next) => {
             return res.status(404).json({ error: "User not found" })
         }
         res.status(200).json(user)
+    } catch (err) {
+        res.status(500).json({ error: err.message })
+    }
+}
+
+module.exports.userLogout = async(req, res, next) => {
+    try {
+        const cookie = req.headers.cookie
+        if (!cookie) {
+            return res.status(404).json({ error: "cookie expries login again" })
+        }
+        const prevToken = cookie.split("=")[1]
+        if (prevToken === undefined) {
+            return res.status(404).json({ error: "No token in the headers" })
+        }
+        jwt.verify(prevToken, process.env.SECRET, (err, user) => {
+            if (err) {
+                return res.status(400).json({ error: "invalid token" })
+            }
+            res.clearCookie(`${user.id}`)
+            req.cookies[`${user.id}`] = ""
+            res.status(200).json({ messge: "user logout" })
+
+        })
     } catch (err) {
         res.status(500).json({ error: err.message })
     }
